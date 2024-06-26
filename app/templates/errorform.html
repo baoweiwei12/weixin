@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错误提交</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+    <div id="app" style="width:fit-content; margin:auto; margin-top: 60px;">
+        <el-container>
+            <el-header>
+                <el-input placeholder="搜索用户..." v-model="searchQuery" @input="searchUsers" clearable>
+                </el-input>
+            </el-header>
+            <el-main>
+                <el-table :data="users" style="width: 100%">
+                    <el-table-column prop="nickname" label="微信昵称"></el-table-column>
+                    <el-table-column prop="remark" label="备注"></el-table-column>
+                    <el-table-column prop="wechat_id" label="微信号"></el-table-column>
+                    <el-table-column label="操作">
+                        <template slot-scope="scope">
+                            <el-button @click="handleAction(scope.row)" type="primary" size="small">
+                                操作
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-main>
+        </el-container>
+
+        <el-dialog :visible.sync="dialogVisible" title="操作表单" width="100%" style="max-width: 800px; margin:auto;">
+            <el-form :model="form">
+                <el-form-item label="错误内容">
+                    <el-input type="textarea" v-model="form.errorContent"
+                        :autosize="{ minRows: 8, maxRows: 12 }"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <input type="file" @change="handleFileChange" accept="image/*">
+                </el-form-item>
+            </el-form>
+            <div slot="footer" class="dialog-footer">
+
+                <el-button @click="resetForm">重置表单</el-button>
+                <el-button @click="dialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitForm">提交</el-button>
+            </div>
+        </el-dialog>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    searchQuery: '',
+                    users: [],
+                    dialogVisible: false,
+                    form: {
+                        errorContent: '',
+                    },
+                    fileList: [],
+                    currentUserWxid: '',
+                    groupWxid: ''
+                };
+            },
+            created() {
+
+                const urlParams = new URLSearchParams(window.location.search);
+                this.groupWxid = urlParams.get('group_wxid') || '';
+                this.recorderWxid = urlParams.get('recorder_wxid') || '';
+
+            },
+            methods: {
+                async resetForm() {
+                    this.form = {
+                        errorContent: '',
+                    }
+                    this.fileList = [];
+                    this.$message.success('表单已重置');
+                },
+                async searchUsers() {
+                    if (this.searchQuery.trim() === '') {
+                        this.users = [];
+                        return;
+                    }
+
+                    try {
+                        const response = await axios.get(`/weixin/personnel?search=${this.searchQuery}`);
+                        this.users = response.data;
+                    } catch (error) {
+                        console.error('获取用户出错:', error);
+                    }
+                },
+                handleAction(user) {
+                    this.dialogVisible = true;
+                    this.currentUserWxid = user.wxid;
+                },
+                handleFileChange(event) {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        return;
+                    }
+
+                    const isImage = file.type.startsWith('image/');
+                    const isLt2M = file.size / 1024 / 1024 < 2;
+
+                    if (!isImage) {
+                        this.$message.error('只能上传图片文件');
+                        this.fileList = [];
+                    } else if (!isLt2M) {
+                        this.$message.error('图片大小不能超过 2MB');
+                        this.fileList = [];
+                    } else {
+                        this.fileList = [file];
+                    }
+                },
+                async submitForm() {
+                    const formData = new FormData();
+                    formData.append('errorContent', this.form.errorContent);
+                    formData.append('personnel_wxid', this.currentUserWxid);
+                    formData.append('group_wxid', this.groupWxid);
+                    formData.append('recorder_wxid', this.recorderWxid);
+                    if (this.fileList.length > 0) {
+                        formData.append('file', this.fileList[0]);
+                    }
+
+                    try {
+                        const response = await axios.post('/weixin/error/submit', formData, {
+                            headers: {
+                                'Content-Type': 'multipart/form-data'
+                            }
+                        });
+                        console.log('表单提交成功:', response.data);
+                        this.dialogVisible = false;
+                        this.$message.success('提交成功');
+                        // 重置表单
+                        this.form = { errorContent: '' };
+                        this.fileList = [];
+                    } catch (error) {
+                        console.error('表单提交失败:', error);
+                        this.$message.error('提交失败');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,14 @@
+APP:
+  NAME: weixinbot
+  VERSION: 1.0.0
+  DESCRIPTION: weixinbot
+MYSQL:
+  HOST: localhost
+  PORT: 3306
+  USER: root
+  PASSWORD: 7220427x
+  DATABASE: weixinbot
+JWT:
+  SECRET_KEY: POyuxjM4A6z_xa0H3ipUrxet
+  ALGORITHM: HS256
+  EXPIRE_MINUTES: 360
